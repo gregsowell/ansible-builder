@@ -3,19 +3,32 @@
   hosts: aap.gregsowell.com
   gather_facts: false
   vars:
+    # aap username/pass
+    controller_user: "{{ gen2_user }}"
+    controller_pass: "{{ gen2_pword }}"
+
     # what is the base EE that is used for building my custom EE
     base_ee: registry.redhat.io/ansible-automation-platform-21/ee-supported-rhel8
+
     # what is the name of the new EE being built
     new_ee: azure_ee_supported
+
     # what is the path where the EE build files are stored
     path_ee: /root/ee
+
     # private automation hub host
     pah_host: pah.gregsowell.com
+
+    # credential name used in AAP
+    pah_cred: Automation Hub Container Registry
+
     # new version number for the pushed ee
     new_ee_ver: 1.0.0
+
     # pah username/pass
-    pah_user: builder-push
-    pah_pass: PushToPAH22
+    pah_user: "{{ gen1_user }}"
+    pah_pass: "{{ gen1_pword }}"
+
   tasks:
   - name: Grab the list of EEs to ensure the correct EE exists
     ansible.builtin.shell: podman image list
@@ -58,3 +71,74 @@
 #    ansible.builtin.debug:
 #      var: pah_push_out
 
+  - name: Collect credentials
+    uri:
+      url: "https://{{ inventory_hostname }}/api/v2/credentials/"
+      user: "{{ controller_user }}"
+      password: "{{ controller_pass }}"
+      method: GET
+      validate_certs: false
+      force_basic_auth: true
+#      body_format: json
+#      body: |
+#          {
+#              "name": "{{ new_ee }}",
+#              "image": "{{ pah_host }}/{{ new_ee }}:{{ new_ee_ver }}",
+#              "description": "added by automation",
+#              "pull": "missing",
+#              "credential": "{{ pah_cred }}"
+#          }
+      status_code:
+        - 200
+        - 201
+        - 204
+#    delegate_to: localhost
+#    async: 7200
+#    poll: 0
+    register: aap_cred_out
+
+#  - name: Debug aap_cred_out
+#    ansible.builtin.debug:
+#      var: aap_cred_out
+
+#  - name: loop Debug aap_cred_out
+#    when: item.name == pah_cred
+#    ansible.builtin.debug:
+#      msg: "the item id is: {{ item.id }}"
+#    loop: "{{ aap_cred_out.json.results }}"
+
+  - name: Set ansible credential name to ID
+    when: item.name == pah_cred
+    ansible.builtin.set_fact:
+      pah_cred_id: "{{ item.id }}"
+    loop: "{{ aap_cred_out.json.results }}"
+
+  - name: Configure AAP for new EE
+    uri:
+      url: "https://{{ inventory_hostname }}/api/v2/execution_environments/"
+      user: "{{ controller_user }}"
+      password: "{{ controller_pass }}"
+      method: POST
+      validate_certs: false
+      force_basic_auth: true
+      body_format: json
+      body: |
+          {
+              "name": "{{ new_ee }}",
+              "image": "{{ pah_host }}/{{ new_ee }}:{{ new_ee_ver }}",
+              "description": "added by automation",
+              "pull": "missing",
+              "credential": "{{ pah_cred_id }}"
+          }
+      status_code:
+        - 200
+        - 201
+        - 204
+#    delegate_to: localhost
+#    async: 7200
+#    poll: 0
+    register: aap_conf_out
+
+#  - name: Debug aap_conf_out
+#    ansible.builtin.debug:
+#      var: aap_conf_out
