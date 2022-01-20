@@ -1,0 +1,60 @@
+---
+- name: Build/Push/Install Custom EEs
+  hosts: aap.gregsowell.com
+  gather_facts: false
+  vars:
+    # what is the base EE that is used for building my custom EE
+    base_ee: registry.redhat.io/ansible-automation-platform-21/ee-supported-rhel8
+    # what is the name of the new EE being built
+    new_ee: azure_ee_supported
+    # what is the path where the EE build files are stored
+    path_ee: /root/ee
+    # private automation hub host
+    pah_host: pah.gregsowell.com
+    # new version number for the pushed ee
+    new_ee_ver: 1.0.0
+    # pah username/pass
+    pah_user: builder-push
+    pah_pass: PushToPAH22
+  tasks:
+  - name: Grab the list of EEs to ensure the correct EE exists
+    ansible.builtin.shell: podman image list
+#    args:
+#      chdir: somedir/
+    register: ee_list
+
+#  - name: debug ee_list
+#    when: ee_list.stdout_lines is search(base_ee)
+#    ansible.builtin.debug:
+#      var: ee_list
+
+  - name: Install the required base EE if not already present
+    when: ee_list.stdout_lines is not search(base_ee)
+    ansible.builtin.debug:
+      msg: "Install the missing base EE here"
+
+  - name: Begin the build process on the EE
+    when: ee_list.stdout_lines is search(base_ee)
+    block:
+      - name: Run the build on the selected new EE
+        ansible.builtin.shell: "ansible-builder build --tag {{ new_ee }}"
+        args:
+          chdir: "{{ path_ee }}/{{new_ee}}"
+        register: ee_build_out
+        failed_when: ee_build_out.stdout_lines is not search('Complete!')
+
+#      - name: debug ee_build_out
+#        ansible.builtin.debug:
+#          var: ee_build_out
+
+  - name: Push EE to container registry
+    ansible.builtin.shell: "podman push --creds={{ pah_user }}:{{ pah_pass }} localhost/{{ new_ee }}:latest docker://{{ pah_host }}/{{ new_ee }}:{{ new_ee_ver }} --tls-verify=false"
+    args:
+      chdir: "{{ path_ee }}/{{new_ee}}"
+    register: pah_push_out
+    failed_when: pah_push_out.stderr_lines is not search('Storing signatures')
+
+#  - name: Debug pah_push_out
+#    ansible.builtin.debug:
+#      var: pah_push_out
+
