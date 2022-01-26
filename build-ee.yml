@@ -11,7 +11,7 @@
 #    base_ee: registry.redhat.io/ansible-automation-platform-21/ee-supported-rhel8
 
     # what is the name of the new EE being built
-    new_ee: azure_ee_supported
+    new_ee: all_ee_supported
 
     # what is the path where the EE build files are stored
     path_ee: /root/ee
