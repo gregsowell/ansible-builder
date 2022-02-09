@@ -36,7 +36,9 @@
 
   tasks:
   - name: Git clone the EE repo to ensure I have the newest files
-    ansible.builtin.shell: "{{ base_ee_path }} git clone {{ ee_repo }}"
+    ansible.builtin.shell: "git clone {{ ee_repo }}"
+    args:
+      chdir: "{{ base_ee_path }}"
     
   - name: Grab the execution-environment.yml file to use as variables
     ansible.builtin.fetch:
