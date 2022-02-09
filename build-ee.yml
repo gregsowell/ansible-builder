@@ -14,11 +14,14 @@
     new_ee: all_ee_supported
 
     # what is the path where the EE build files are stored
-    path_ee: /root/ee
-
+    path_ee: /root/ansible-execution-environments
+    # base folder for cloning EE
+    base_ee_path: /root
     # private automation hub host
     pah_host: pah.gregsowell.com
-
+    # ee repo
+    ee_repo: https://github.com/gregsowell/ansible-execution-environments
+    
     # credential name used in AAP
     pah_cred: Automation Hub Container Registry
 
@@ -28,8 +31,13 @@
     # pah username/pass
     pah_user: "{{ gen1_user }}"
     pah_pass: "{{ gen1_pword }}"
+    
+    
 
   tasks:
+  - name: Git clone the EE repo to ensure I have the newest files
+    ansible.builtin.shell: "{{ base_ee_path }} git clone {{ ee_repo }}"
+    
   - name: Grab the execution-environment.yml file to use as variables
     ansible.builtin.fetch:
       src: "{{ path_ee }}/{{ new_ee }}/execution-environment.yml"
