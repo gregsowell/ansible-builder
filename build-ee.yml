@@ -35,11 +35,23 @@
     
 
   tasks:
+  - name: check if the folder exists or not
+    ansible.builtin.stat:
+      path: "{{ path_ee }}"
+    register: path_exist
+
   - name: Git clone the EE repo to ensure I have the newest files
+    when: path_exist.stat.islnk is not defined
     ansible.builtin.shell: "git clone {{ ee_repo }}"
     args:
       chdir: "{{ base_ee_path }}"
-    
+
+  - name: Git pull the EE repo to ensure I have the newest files
+    when: path_exist.stat.islnk is defined
+    ansible.builtin.shell: "git pull"
+    args:
+      chdir: "{{ path_ee }}"
+
   - name: Grab the execution-environment.yml file to use as variables
     ansible.builtin.fetch:
       src: "{{ path_ee }}/{{ new_ee }}/execution-environment.yml"
