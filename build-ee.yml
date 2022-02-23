@@ -35,6 +35,12 @@
     
 
   tasks:
+  - name: Podman garbage collection on any old containers *will clear out most contianers*
+    when: garbage_collection is defined
+    ansible.builtin.shell: sudo podman system prune -a -f
+    #changed_when: false
+
+
   - name: check if the folder exists or not
     ansible.builtin.stat:
       path: "{{ path_ee }}"
