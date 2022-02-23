@@ -35,10 +35,21 @@
     
 
   tasks:
-  - name: Podman garbage collection on any old containers *will clear out most contianers*
+  - name: Garbage Collection
     when: garbage_collection is defined
-    ansible.builtin.shell: sudo podman system prune -a -f
-    #changed_when: false
+    block:
+    - name: List out if there are any hanging containers
+      ansible.builtin.shell: df -h | grep /var/lib/containers/storage/overlay/
+      register: overlays
+      
+    - name: Print out overlays
+      ansible.builtin.debug:
+        var: overlays
+
+    - name: Podman garbage collection on any old containers *will clear out most contianers*
+#      when: garbage_collection is defined
+      ansible.builtin.shell: sudo podman system prune -a -f
+      #changed_when: false
 
 
   - name: check if the folder exists or not
