@@ -105,8 +105,53 @@
     ansible.builtin.debug:
       msg: "Install the missing base EE here"
 
-  - name: Begin the build process on the EE
-    when: ee_list.stdout_lines is search(base_ee)
+  - name: search containing folder to determine if there are any crt files(used for self-signed pah server)
+    ansible.builtin.find:
+      paths: "{{ path_ee }}/{{ new_ee }}"
+      patterns: '*.crt'
+    register: crt_files
+
+#  - name: debug
+#    when: crt_files.matched > 0
+#    ansible.builtin.debug:
+#      var: crt_files
+
+  - name: Begin the build process on the EE when certs do need to be installed
+    when: ee_list.stdout_lines is search(base_ee) and crt_files.matched > 0
+#    when: ee_list.stdout_lines is search(inc_vars.build_arg_defaults.EE_BASE_IMAGE)
+    block:
+      - name: Run the build on the selected new EE
+        ansible.builtin.shell: "ansible-builder create"
+        args:
+          chdir: "{{ path_ee }}/{{new_ee}}"
+        register: ee_build_out
+        failed_when: ee_build_out.stdout_lines is not search('Complete!')
+
+      - name: Copy cert files to the build folder
+        ansible.builtin.shell: "cp {{ path_ee }}/{{new_ee}}/*.crt {{ path_ee }}/{{new_ee}}/context/_build"
+        args:
+          chdir: "{{ path_ee }}/{{new_ee}}"
+
+      - name: Add line to Containerfile to ensure the certificates are copied and applied
+        ansible.builtin.lineinfile:
+          path: "{{ path_ee }}/{{new_ee}}/context/Containerfile"
+#          search_string: '<FilesMatch ".php[45]?$">'
+          insertbefore: '^RUN ansible-galaxy role install.*'
+          line: 'RUN cp *.crt /etc/pki/ca-trust/source/anchors && update-ca-trust'
+
+      - name: Run the build on the selected new EE
+        ansible.builtin.shell: "podman build -f context/Containerfile -t {{ new_ee }} context"
+        args:
+          chdir: "{{ path_ee }}/{{new_ee}}"
+        register: ee_build_out
+#        failed_when: ee_build_out.stdout_lines is not search('Complete!')
+
+#      - name: debug ee_build_out
+#        ansible.builtin.debug:
+#          var: ee_build_out
+
+  - name: Begin the build process on the EE when no certs need to be installed
+    when: ee_list.stdout_lines is search(base_ee) and crt_files.matched == 0
 #    when: ee_list.stdout_lines is search(inc_vars.build_arg_defaults.EE_BASE_IMAGE)
     block:
       - name: Run the build on the selected new EE
