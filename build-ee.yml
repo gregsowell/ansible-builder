@@ -120,7 +120,7 @@
     when: ee_list.stdout_lines is search(base_ee) and crt_files.matched > 0
 #    when: ee_list.stdout_lines is search(inc_vars.build_arg_defaults.EE_BASE_IMAGE)
     block:
-      - name: Run the build on the selected new EE
+      - name: Run the create on the selected new EE - **install certs process**
         ansible.builtin.shell: "ansible-builder create"
         args:
           chdir: "{{ path_ee }}/{{new_ee}}"
@@ -135,11 +135,10 @@
       - name: Add line to Containerfile to ensure the certificates are copied and applied
         ansible.builtin.lineinfile:
           path: "{{ path_ee }}/{{new_ee}}/context/Containerfile"
-#          search_string: '<FilesMatch ".php[45]?$">'
           insertbefore: '^RUN ansible-galaxy role install.*'
           line: 'RUN cp *.crt /etc/pki/ca-trust/source/anchors && update-ca-trust'
 
-      - name: Run the build on the selected new EE
+      - name: Run the build on the selected new EE - with installed certs
         ansible.builtin.shell: "podman build -f context/Containerfile -t {{ new_ee }} context"
         args:
           chdir: "{{ path_ee }}/{{new_ee}}"
