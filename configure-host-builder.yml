@@ -1,6 +1,6 @@
 ---
 - name: setup a host with the default builder tools required to make execution environments(ee)
-  hosts: nodezzz
+  hosts: ee-builder
   gather_facts: false
   vars:
   tasks:
